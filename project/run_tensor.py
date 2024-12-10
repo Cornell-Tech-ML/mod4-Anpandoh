@@ -11,6 +11,36 @@ def RParam(*shape):
     r = 2 * (minitorch.rand(shape) - 0.5)
     return minitorch.Parameter(r)
 
+class Network(minitorch.Module):
+    def __init__(self, hidden_layers):
+        """ Initialize the layers of the network."""
+        super().__init__()
+        self.layer1 = Linear(2, hidden_layers)
+        self.layer2 = Linear(hidden_layers, hidden_layers)
+        self.layer3 = Linear(hidden_layers, 1)
+
+    def forward(self, input_tensor):
+        """ Forward pass of the network."""
+        hidden_output1 = self.layer1.forward(input_tensor).relu()
+        hidden_output2 = self.layer2.forward(hidden_output1).relu()
+        return self.layer3.forward(hidden_output2).sigmoid()
+
+class Linear(minitorch.Module):
+    def __init__(self, inSize, outSize):
+        """ Initialize the weights and bias of the linear layer."""
+        super().__init__()
+        self.weights = RParam(inSize, outSize)
+        self.bias = RParam(outSize)
+        self.outSize = outSize
+
+    def forward(self, x):
+        """ Forward pass of the linear layer."""
+        batch, inSize = x.shape
+        x = x.view(batch, inSize, 1)
+        w = self.weights.value.view(1, inSize, self.outSize)
+        h = (w * x).sum(1).view(batch, self.outSize)
+        return h + self.bias.value.view(self.outSize)
+
 
 def default_log_fn(epoch, total_loss, correct, losses):
     print("Epoch ", epoch, " loss ", total_loss, "correct", correct)
