@@ -39,11 +39,10 @@ class Conv2d(minitorch.Module):
         super().__init__()
         self.weights = RParam(out_channels, in_channels, kh, kw)
         self.bias = RParam(out_channels, 1, 1)
-
     def forward(self, input):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
-
+        return minitorch.conv2d(input, self.weights.value) + self.bias.value
+        # # TODO: Implement for Task 4.5.
+        # raise NotImplementedError("Need to implement for Task 4.5")
 
 class Network(minitorch.Module):
     """
@@ -67,12 +66,28 @@ class Network(minitorch.Module):
         self.mid = None
         self.out = None
 
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        self.conv0 = Conv2d(1, 4, 3, 3)
+        self.conv1 = Conv2d(4, 8, 3, 3)
+        self.linear0 = Linear(392, 64)
+        self.linear1 = Linear(64, C)
+        # # TODO: Implement for Task 4.5.
+        # raise NotImplementedError("Need to implement for Task 4.5")
 
     def forward(self, x):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError("Need to implement for Task 4.5")
+        self.mid = self.conv0(x).relu()
+        self.out = self.conv1(self.mid).relu()
+        avgpool = minitorch.avgpool2d(self.out, (4, 4))
+        flat = avgpool.view(BATCH, 392)
+        linear0_out = self.linear0(flat).relu()
+
+        linear0_out = minitorch.dropout(linear0_out, 0.25)
+
+        linear1_out = self.linear1(linear0_out)
+
+        return minitorch.logsoftmax(linear1_out, 1)
+    
+        # # TODO: Implement for Task 4.5.
+        # raise NotImplementedError("Need to implement for Task 4.5")
 
 
 def make_mnist(start, stop):
