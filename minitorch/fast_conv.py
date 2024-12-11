@@ -1,14 +1,11 @@
 from typing import Tuple, TypeVar, Any
 
-import numpy as np
 from numba import prange
 from numba import njit as _njit
 
 from .autodiff import Context
 from .tensor import Tensor
 from .tensor_data import (
-    MAX_DIMS,
-    Index,
     Shape,
     Strides,
     Storage,
@@ -22,6 +19,7 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """Decorator to JIT compile functions with NUMBA."""
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -89,9 +87,27 @@ def _tensor_conv1d(
     )
     s1 = input_strides
     s2 = weight_strides
+    for b in prange(batch):
+        for oc in prange(out_channels):
+            for w in prange(out_width):
+                value = 0.0
+                for ic in range(in_channels):
+                    for k in range(kw):
+                        if reverse:
+                            i = w - k
+                        else:
+                            i = w + k
+                        if i >= 0 and i < width:
+                            value += (
+                                input[b * s1[0] + ic * s1[1] + i * s1[2]]
+                                * weight[oc * s2[0] + ic * s2[1] + k * s2[2]]
+                            )
+                out[b * out_strides[0] + oc * out_strides[1] + w * out_strides[2]] = (
+                    value
+                )
 
     # TODO: Implement for Task 4.1.
-    raise NotImplementedError("Need to implement for Task 4.1")
+    # raise NotImplementedError("Need to implement for Task 4.1")
 
 
 tensor_conv1d = njit(_tensor_conv1d, parallel=True)
@@ -127,6 +143,7 @@ class Conv1dFun(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Compute gradients for 1D Convolution"""
         input, weight = ctx.saved_values
         batch, in_channels, w = input.shape
         out_channels, in_channels, kw = weight.shape
@@ -203,7 +220,9 @@ def _tensor_conv2d(
         reverse (bool): anchor weight at top-left or bottom-right
 
     """
-    batch_, out_channels, _, _ = out_shape
+    batch_, out_channels, out_height, out_width = (
+        out_shape  # ? Why doesnt this include out_height and out_width originally?
+    )
     batch, in_channels, height, width = input_shape
     out_channels_, in_channels_, kh, kw = weight_shape
 
@@ -219,8 +238,33 @@ def _tensor_conv2d(
     s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
     s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
 
-    # TODO: Implement for Task 4.2.
-    raise NotImplementedError("Need to implement for Task 4.2")
+    for b in prange(batch):
+        for oc in prange(out_channels):
+            for h in prange(out_height):
+                for w in prange(out_width):
+                    value = 0.0
+                    for ic in range(in_channels):
+                        for i in range(kh):
+                            for j in range(kw):
+                                if reverse:
+                                    ii = h - i
+                                    jj = w - j
+                                else:
+                                    ii = h + i
+                                    jj = w + j
+                                if 0 <= ii < height and 0 <= jj < width:
+                                    value += (
+                                        input[b * s10 + ic * s11 + ii * s12 + jj * s13]
+                                        * weight[
+                                            oc * s20 + ic * s21 + i * s22 + j * s23
+                                        ]
+                                    )
+                    out[
+                        b * out_strides[0]
+                        + oc * out_strides[1]
+                        + h * out_strides[2]
+                        + w * out_strides[3]
+                    ] = value
 
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
@@ -254,6 +298,7 @@ class Conv2dFun(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Compute gradients for 2D Convolution"""
         input, weight = ctx.saved_values
         batch, in_channels, h, w = input.shape
         out_channels, in_channels, kh, kw = weight.shape
