@@ -39,8 +39,12 @@ def tile(input: Tensor, kernel: Tuple[int, int]) -> Tuple[Tensor, int, int]:
     new_width = width // kw
 
     tile_out = input.contiguous().view(batch, channel, new_height, kh, new_width, kw)
-    tile_out = tile_out.permute(0, 1, 2, 4, 3, 5).contiguous()  
-    return tile_out.view(batch, channel, new_height, new_width, kh * kw), new_height, new_width
+    tile_out = tile_out.permute(0, 1, 2, 4, 3, 5).contiguous()
+    return (
+        tile_out.view(batch, channel, new_height, new_width, kh * kw),
+        new_height,
+        new_width,
+    )
 
 
 # TODO: Implement for Task 4.3.
@@ -61,13 +65,13 @@ def avgpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
     tile_out, new_height, new_width = tile(input, kernel)
     return tile_out.mean(4).view(batch, channel, new_height, new_width)
 
-max_reduction = FastOps.reduce(operators.max, float("-inf"))
 
+max_reduction = FastOps.reduce(operators.max, float("-inf"))
 
 
 class Max(Function):
     @staticmethod
-    def forward(ctx: Context, input: Tensor, dim: int) -> Tensor:
+    def forward(ctx: Context, input: Tensor, dim: Tensor) -> Tensor:
         """Compute the max of a tensor along a dimension
 
         Args:
@@ -87,10 +91,11 @@ class Max(Function):
         return max_tensor
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tensor:
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         """Compute the gradient of the max function"""
         input, maxTensor = ctx.saved_values
         return (input == maxTensor) * grad_output, 0.0
+
 
 def max(input: Tensor, dim: int) -> Tensor:
     """Apply max reduction
@@ -105,7 +110,8 @@ def max(input: Tensor, dim: int) -> Tensor:
         Apply max to the input tensor
 
     """
-    return Max.apply(input, input._ensure_tensor(dim))  
+    return Max.apply(input, input._ensure_tensor(dim))
+
 
 def argmax(input: Tensor, dim: int) -> Tensor:
     """Compute the argmax as a 1-hot tensor
@@ -140,6 +146,7 @@ def softmax(input: Tensor, dim: int) -> Tensor:
     exp = input.exp()
     return exp / exp.sum(dim)
 
+
 def logsoftmax(input: Tensor, dim: int) -> Tensor:
     """Compute the log of the softmax as a tensor
 
@@ -160,6 +167,7 @@ def logsoftmax(input: Tensor, dim: int) -> Tensor:
     log = sum.log()
     return shift - log
 
+
 def maxpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
     """Apply a 2D max pooling to the input tensor.
 
@@ -176,6 +184,7 @@ def maxpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
     batch, channel, height, width = input.shape
     tile_out, new_height, new_width = tile(input, kernel)
     return max(tile_out, 4).view(batch, channel, new_height, new_width)
+
 
 def dropout(input: Tensor, p: float, ignore: bool = False) -> Tensor:
     """Dropout positions based on random noise, include an argument to turn off

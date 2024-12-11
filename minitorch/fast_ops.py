@@ -187,7 +187,7 @@ def tensor_map(
         ):
             for i in prange(len(out)):  # this is very similar to openMP
                 out_index: Index = np.empty(MAX_DIMS, dtype=np.int32)
-                in_index: Index  = np.empty(MAX_DIMS, dtype=np.int32)
+                in_index: Index = np.empty(MAX_DIMS, dtype=np.int32)
                 to_index(i, out_shape, out_index)
                 broadcast_index(out_index, out_shape, in_shape, in_index)
 

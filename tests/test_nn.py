@@ -39,13 +39,10 @@ def test_max(t: Tensor) -> None:
 
     out = minitorch.max(t, 0)
     assert_close(out[0, 0, 0], max(t[i, 0, 0] for i in range(2)))
-    
 
-    #tolerance too low
+    # tolerance too low
     t = t + minitorch.rand(t.shape)
     minitorch.grad_check(lambda t: minitorch.nn.max(t, 2), t)
-
-    
 
 
 @pytest.mark.task4_4

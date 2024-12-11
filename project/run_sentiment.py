@@ -97,10 +97,10 @@ class CNNSentimentKim(minitorch.Module):
 
         #dropout
         linear_out = minitorch.dropout(linear_out, self.dropout)
-        
+
         return linear_out.sigmoid().view(batch)
-        
-        
+
+
 
 
 
